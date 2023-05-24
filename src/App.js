@@ -2,7 +2,7 @@ import './App.css';
 import { useRef, useEffect } from 'react';
 import io from 'socket.io-client';
 
-const socket = io('https://15c7-14-42-240-40.ngrok-free.app/remote-ctrl');
+const socket = io('https://b6ea-220-68-8-39.ngrok-free.app/remote-ctrl');
 
 function App() {
   const videoRef = useRef();

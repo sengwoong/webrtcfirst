@@ -5,99 +5,88 @@ const {
     ipcMain,
     Menu,
     powerMonitor,
-} = require('electron')
-const path = require('path')
+} = require('electron');
+const path = require('path');
 
-const cors = require('cors')
+const cors = require('cors');
 const express = require('express');
 const expressApp = express();
-const { screen } = require('electron')
+const { screen } = require('electron');
 
-let availableScreens
-let mainWindow
+let availableScreens;
+let mainWindow;
 
-
-const { createServer } = require('http')
-const { Server } = require('socket.io')
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 
 expressApp.use(express.static(__dirname));
 
 expressApp.get('/', function (req, res, next) {
-    console.log('req path...', req.path)
+    console.log('req path...', req.path);
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-expressApp.set('port', 4000)
-expressApp.use(cors({ origin: '*' }))
+expressApp.set('port', 4000);
+expressApp.use(cors());
 
-expressApp.use(function (req, res, next) {
-    // Website you wish to allow to connect
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    // Request methods you wish to allow
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-    // Request headers you wish to allow
-    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
-    // Set to true if you need the website to include cookies in the requests sent
-    // to the API (e.g. in case you use sessions)
-    res.setHeader('Access-Control-Allow-Credentials', true);
-    // Pass to next layer of middleware
-    next();
-})
+const httpServer = createServer(expressApp);
+httpServer.listen(4000, '0.0.0.0');
+httpServer.listen(3000, '0.0.0.0');
+httpServer.on('error', e => console.log('error'));
+httpServer.on('listening', () => console.log('listening.....'));
 
-const httpServer = createServer(expressApp)
-httpServer.listen(4000, '0.0.0.0')
-httpServer.on('error', e => console.log('error'))
-httpServer.on('listening', () => console.log('listening.....'))
 const io = new Server(httpServer, {
-    origin: '*',
-})
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
+        allowedHeaders: ['X-Requested-With', 'Content-Type'],
+        credentials: true
+    }
+});
 
-const connections = io.of('/remote-ctrl')
+const connections = io.of('/remote-ctrl');
 
 connections.on('connection', socket => {
-    console.log('connection established')
+    console.log('connection established');
 
     socket.on('offer', sdp => {
-        console.log('routing offer')
+        console.log('routing offer');
         // send to the electron app
-        socket.broadcast.emit('offer', sdp)
-    })
+        socket.broadcast.emit('offer', sdp);
+    });
 
     socket.on('answer', sdp => {
-        console.log('routing answer')
+        console.log('routing answer');
         // send to the electron app
-        socket.broadcast.emit('answer', sdp)
-    })
+        socket.broadcast.emit('answer', sdp);
+    });
 
     socket.on('icecandidate', icecandidate => {
-        socket.broadcast.emit('icecandidate', icecandidate)
-    })
+        socket.broadcast.emit('icecandidate', icecandidate);
+    });
 
     socket.on('selectedScreen', selectedScreen => {
-        clientSelectedScreen = selectedScreen
-console.log('clientSelectedScreen', clientSelectedScreen)
-        socket.broadcast.emit('selectedScreen', clientSelectedScreen)
-    })
-
-    
-})
+        clientSelectedScreen = selectedScreen;
+        console.log('clientSelectedScreen', clientSelectedScreen);
+        socket.broadcast.emit('selectedScreen', clientSelectedScreen);
+    });
+});
 
 const sendSelectedScreen = (item) => {
- mainWindow.webContents.send('SET_SOURCE_ID', {
+    mainWindow.webContents.send('SET_SOURCE_ID', {
         id: item.id,
-       
-    })
-}
+    });
+};
 
 const createTray = () => {
     const screensMenu = availableScreens.map(item => {
         return {
             label: item.name,
             click: () => {
-                sendSelectedScreen(item)
+                sendSelectedScreen(item);
             }
-        }
-    })
+        };
+    });
 
     const menu = Menu.buildFromTemplate([
         {
@@ -110,11 +99,10 @@ const createTray = () => {
             label: 'Screens',
             submenu: screensMenu
         }
-    ])
+    ]);
 
-    Menu.setApplicationMenu(menu)
-}
-
+    Menu.setApplicationMenu(menu);
+};
 
 const createWindow = () => {
     mainWindow = new BrowserWindow({
@@ -124,34 +112,34 @@ const createWindow = () => {
         webPreferences: {
             preload: path.join(__dirname, 'preload.js')
         }
-    })
+    });
 
     ipcMain.on('set-size', (event, size) => {
-        const { width, height } = size
+        const { width, height } = size;
         try {
-            console.log('electron dim..', width, height)
-            // mainWindow.setSize(width, height || 500, true)
-            !isNaN(height) && mainWindow.setSize(width, height, false)
+            console.log('electron dim..', width, height);
+            // mainWindow.setSize(width, height || 500, true);
+            !isNaN(height) && mainWindow.setSize(width, height, false);
         } catch (e) {
-            console.log(e)
+            console.log(e);
         }
-    })
+    });
 
-    mainWindow.loadURL('https://15c7-14-42-240-40.ngrok-free.app/')
+    mainWindow.loadURL('https://b6ea-220-68-8-39.ngrok-free.app/');
 
     mainWindow.once('ready-to-show', () => {
-        displays = screen.getAllDisplays()
+        displays = screen.getAllDisplays();
 
-        mainWindow.show()
-        mainWindow.setPosition(0, 0)
+        mainWindow.show();
+        mainWindow.setPosition(0, 0);
 
         desktopCapturer.getSources({
             types: ['screen']
             // types: ['window', 'screen']
         }).then(sources => {
-            sendSelectedScreen(sources[0])
-            availableScreens = sources
-            createTray()
+            sendSelectedScreen(sources[0]);
+            availableScreens = sources;
+            createTray();
             // for (const source of sources) {
             //     console.log(sources)
             //     if (source.name === 'Screen 1') {
@@ -159,12 +147,12 @@ const createWindow = () => {
             //         return
             //     }
             // }
-        })
-    })
+        });
+    });
 
-    mainWindow.webContents.openDevTools()
-}
+    mainWindow.webContents.openDevTools();
+};
 
 app.on('ready', () => {
-    createWindow()
-})
+    createWindow();
+});
